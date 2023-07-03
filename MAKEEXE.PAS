@@ -18,21 +18,21 @@ Const
 
 Type
   ExeHeaderType = Record
-    ExeSign        ,
-    ByteOnLastPage ,
-    FileSizeDIV512 ,
-    NumberOfRel    ,
-    HeaderSizeInP  ,
-    MinMemInP      ,
-    MaxMemInP      ,
-    SS             ,
-    SP             ,
-    ChkSum         ,
-    IP             ,
-    CS             ,
-    RelocTabel     ,
-    Overlay        : Word;
-    MyIdString     : String [Length (IDString)];
+    ExeSign        , { Signature of the executable file (MZ or ZM)}
+    ByteOnLastPage , { Number of bytes on the last page of the file}
+    FileSizeDIV512 , { Size of the file in 512-byte blocks}
+    NumberOfRel    , { Number of relocation entries}
+    HeaderSizeInP  , { Size of the header in paragraphs}
+    MinMemInP      , { Minimum amount of memory required in paragraphs}
+    MaxMemInP      , { Maximum amount of memory required in paragraphs}
+    SS             , { Initial value of the SS register}
+    SP             , { Initial value of the SP register}
+    ChkSum         , { Checksum of the file (optional)}
+    IP             , { Initial value of the IP register}
+    CS             , { Initial value of the CS register}
+    RelocTabel     , { Offset of the relocation table (optional)}
+    Overlay        : Word; { Overlay number (optional)}
+    MyIdString     : String [Length (IDString)]; { ID string (optional)}
   End;
 
 Var
@@ -105,15 +105,15 @@ End;
 
 Function Ask (TextStr : String; Legal : String) : Char;
 Var
-  Ch : Char;
+  Ch : Char; { Declare a variable Ch of type Char}
 
 Begin
-  Write (TextStr);
+  Write (TextStr); { Display the value of TextStr on the screen}
   Repeat
-    Ch := UpCase (ReadKey);
-  Until Pos (Ch, Legal) <> 0;
-  WriteLn (Ch);
-  Ask := Ch;
+    Ch := UpCase (ReadKey); { Read a key from the keyboard and convert it to uppercase}
+  Until Pos (Ch, Legal) <> 0; { Repeat until the key pressed is found in Legal string}
+  WriteLn (Ch); { Display the value of Ch on the screen and move to the next line}
+  Ask := Ch; { Return the value of Ch as the result of the function}
 End;
 
 Procedure AskCont (TextStr : String);
@@ -127,60 +127,76 @@ End;
 
 Procedure FindReloc;
 Var
-  Ct             ,
-  Diff           ,
-  Got            : Word;
-  Written        : Integer;
-  FPos           ,
-  Relocation     : LongInt;
-  OrgExeFileSize : LongInt;
-  TempStr        : String;
-  RmFile         : File;
+  Ct             , {Counter}
+  Diff           , {Difference between Buff1 and Buff2}
+  Got            : Word; {Number of bytes read from file}
+  Written        : Integer; {Number of bytes written to file}
+  FPos           , {Position in file}
+  Relocation     : LongInt; {Relocation information}
+  OrgExeFileSize : LongInt; {Original size of the EXE file}
+  TempStr        : String; {Temporary string variable}
+  RmFile         : File; {File variable}
 
 Begin
-  FPos      := 0;
-  Diff      := 0;
+  FPos      := 0; {Initialize position in file to zero}
+  Diff      := 0; {Initialize difference between Buff1 and Buff2 to zero}
 
-  WriteLn('þ Write relocations');
+  WriteLn('þ Write relocations'); {Write a message to the console}
+
   Repeat
-    BlockRead (File1, Buff1, BuffSize, Got);
-    BlockRead (File2, Buff2, BuffSize, Got);
-    For Ct := 1 To Got Do Begin
-      Inc (FPos);
-      If Buff1[Ct] <> Buff2[Ct] Then Begin
-        If Ct = Got Then Begin
-          BlockRead (File1, Buff1[ct+1], 1);
-          BlockRead (File2, Buff2[ct+1], 1);
+    BlockRead (File1, Buff1, BuffSize, Got); {Read a block of data from File1 into Buff1}
+    If Got = 0 Then Break; {If we've reached the end of the buffer... exit loop.}
+    BlockRead (File2, Buff2, BuffSize, Got); {Read a block of data from File2 into Buff2}
+
+    For Ct := 1 To Got Do Begin {Loop through each byte in the block of data}
+      Inc (FPos); {Increment position in file}
+
+      If Buff1[Ct] <> Buff2[Ct] Then Begin {If the bytes are different...}
+        If Ct = Got Then Begin {If this is the last byte in the block...}
+          BlockRead (File1, Buff1[ct+1], 1); {Read second byte from File1 into Buff1}
+          BlockRead (File2, Buff2[ct+1], 1); {Read second byte from File2 into Buff2}
         End;
 
-        If Diff = 0 Then Diff := Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^);
+        Diff := Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^); 
+       {If Diff = 863 Then Begin hardcore required diff here }
+        Write('þ Ct=', Ct, ' diff=', Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^));
 
-        If Diff <> Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^) Then Begin
-          Dec (FPos);
-          Got := 0;
-          Break; {End of valid data !}
+        If Diff <> Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^) Then Begin 
+          {If the difference between Buff1 and Buff2 has changed...}
+          {Dec (FPos); Decrement position in file}
+          {Got := 0; Set number of bytes read from file to zero}
+          Write(' End of valid data! Exit loop');
+          {Break; End of valid data! Exit loop.}
         End;
-        Word(Addr (Buff1[Ct])^) := Word(Addr (Buff1[Ct])^) - (ExeInfo[1].PSP + $10);
-        Relocation := FPos-1; {MUST be done like this !}
+        WriteLn;
+        Word(Addr (Buff1[Ct])^) := Word(Addr (Buff1[Ct])^) - (ExeInfo[1].PSP + $10); 
+        {Calculate relocation information for this byte in Buff1}
+        Relocation := FPos-1; {Calculate relocation information for this byte in Buff2. MUST be done like this!}
+
         Relocation := (Relocation SHR 16 SHL 28) + (Relocation SHL 16 SHR 16);
-        BlockWrite (OutFile, Byte(Relocation), SizeOf (Relocation), Written);
-        If Written <> SizeOf (Relocation) Then Error (10, NewName);
-        Inc (Ct);
-        Inc (FPos);
-        Inc (ExeHeader.NumberOfRel);
-        If Ct > BuffSize Then
-          Break;
-      End;
-    End;
-    BlockWrite (TmpFile, Buff1, Ct, Written);
-    If Written <> Ct Then Error (11,CodeFileName);
-  Until Got <> BuffSize;
 
-  WriteLn('þ Write zero data');
+        BlockWrite (OutFile, Byte(Relocation), SizeOf (Relocation), Written); {Write relocation information to output file}
+
+        If Written <> SizeOf (Relocation) Then Error (10, NewName); {If there was an error writing to the output file...}
+
+        Inc (Ct); {Skip next byte of word}
+        Inc (FPos); {Increment position in file}
+        Inc (ExeHeader.NumberOfRel); {Increment number of relocations}
+
+        If Ct > BuffSize Then Break; {If we've reached the end of the buffer... exit loop.}
+       End;
+      {End; uncomment here}
+    End;
+    BlockWrite (TmpFile, Buff1, Ct, Written); {Write block of data from File1 to TmpFile}
+    If Written <> Ct Then Error (11,CodeFileName); {If there was an error writing to TmpFile...}
+  Until Got <> BuffSize; {Until we've reached the end of both files...}
+
+  WriteLn('þ Write zero data'); {Write a message to the console}
   Got := 0;
-  While FilePos (OutFile) MOD 16 <> 0 Do Begin
-    BlockWrite (OutFile, Got, 1, Written);
-    If Written <> 1 Then Error (10, NewName);
+  While FilePos (OutFile) MOD 16 <> 0 Do Begin {While position in output file is not divisible by 16...}
+    BlockWrite (OutFile, Got, 1, Written); {Write a zero byte to output file. This is padding.}
+
+    If Written <> 1 Then Error (10, NewName); {If there was an error writing to}
   End;
   ExeHeader.HeaderSizeInP := FilePos (OutFile) DIV 16;
 
@@ -189,9 +205,9 @@ Begin
   WriteLn('þ Write code');
   Repeat
     BlockRead  (TmpFile, Buff1, BuffSize, Got);
-    BlockWrite (OutFile, Buff1, Got, Written);
-    If Got <> Written Then Error (10, NewName);
-  Until Written <> BuffSize;
+    If Got <> 0 Then BlockWrite (OutFile, Buff1, Got, Written);
+    {If Got <> Written Then Error (10, NewName);}
+  Until Got = 0;
   Close (OutFile);
 
   FPos := SizeOfFile (NewName);
