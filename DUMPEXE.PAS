@@ -1302,6 +1302,18 @@ Begin
   SetColor;     {HOW ABOUT SAVING ALL COLORS... NAA NEXT VERSION (9.99) !!!!}
 
   Clrscr;
+  asm
+    mov ax, 3
+    int 10h
+
+    mov ah, 0Bh
+    mov bx, 0101h
+    int 10h
+
+    xor bx, bx
+    int 10h
+  End;
+
   FlushDiskCache;
   DrawMenu;
   Repeat
