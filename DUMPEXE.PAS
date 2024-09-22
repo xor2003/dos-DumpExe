@@ -957,16 +957,20 @@ End;
 
 Procedure SwapScrIn;
 Begin
+  SaveMode;
+  SetMode (3);
   SwapScr (True);
   RestoreColor;
   If DoRestoreOnSwap Then Begin
     RestoreCursor;
+    ShowCursor;
     ShowMouse;
   End;
 End;
 
 Procedure SwapScrOut;
 Begin
+  RestoreMode;
   If DoRestoreOnSwap Then Begin
     HideMouse;
     HideCursor;
@@ -1425,6 +1429,7 @@ Begin
   RestoreColor;
   RestoreCursor;
   ShowMouse;
+  ShowCursor;
   If Uninstall Then DeleteTSR;
 End;
 
