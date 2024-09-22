@@ -156,7 +156,7 @@ Begin
         If Diff = 0 Then Diff := Word(Addr (Buff2[Ct])^) - Word(Addr (Buff1[Ct])^);  
         { If this is the first difference found, calculate and store the difference. }
 
-        If Diff <> 1937 Then Begin
+        If Diff <> ((ExeInfo[2].PSP + $10)-(ExeInfo[1].PSP + $10)) Then Begin
           Continue;
         End;
         {WriteLn(Diff);   Output the current difference. }
@@ -233,7 +233,7 @@ Begin
     Seek(OutFile, FPos);
     Repeat
       BlockRead (ExeFile, Buff1, BuffSize, Got);
-      BlockWrite (OutFile Buff1, Got, Written);
+      BlockWrite (OutFile, Buff1, Got, Written);
     Until Written <> BuffSize;
   End;
   WriteLn ('� Number of relocations ',d2h(ExeHeader.NumberOfRel,4),'h');
